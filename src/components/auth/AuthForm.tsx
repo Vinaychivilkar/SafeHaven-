@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabaseClient";
-import { createMockUser } from "@/lib/mockAuth";
 
 type AuthFormProps = {
   onSuccess?: () => void;

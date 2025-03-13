@@ -12,6 +12,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !loading) {
+      console.log("User authenticated, redirecting", user);
       navigate(from, { replace: true });
     }
   }, [user, loading, navigate, from]);

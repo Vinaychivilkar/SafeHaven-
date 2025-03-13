@@ -14,6 +14,7 @@ export function seedMockData() {
         timestamp: "10 minutes ago",
         user: "Alex D.",
         severity: "medium",
+        status: "pending",
         mediaUrl:
           "https://images.unsplash.com/photo-1517436073-3b1b1b1b1b1b?w=400&q=80",
       },
@@ -26,6 +27,7 @@ export function seedMockData() {
         timestamp: "35 minutes ago",
         user: "Jamie L.",
         severity: "high",
+        status: "pending",
         mediaUrl:
           "https://images.unsplash.com/photo-1544984243-ec57ea16fe25?w=400&q=80",
       },
@@ -38,6 +40,7 @@ export function seedMockData() {
         timestamp: "2 hours ago",
         user: "Sam T.",
         severity: "low",
+        status: "pending",
         mediaUrl: null,
       },
       {
@@ -49,6 +52,7 @@ export function seedMockData() {
         timestamp: "5 hours ago",
         user: "Jordan K.",
         severity: "medium",
+        status: "pending",
         mediaUrl:
           "https://images.unsplash.com/photo-1580745294621-26c6873c38e7?w=400&q=80",
       },
@@ -79,6 +83,7 @@ export function addMockIncident(incident: any) {
       id: Date.now(),
       ...incident,
       timestamp: "Just now",
+      status: "pending",
     });
     localStorage.setItem("mockIncidents", JSON.stringify(incidents));
     return true;

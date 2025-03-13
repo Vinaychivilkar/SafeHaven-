@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { MapIcon, AlertCircleIcon, UserIcon, BellIcon } from "lucide-react";
 
 export default function Navbar() {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <nav className="border-b bg-card">

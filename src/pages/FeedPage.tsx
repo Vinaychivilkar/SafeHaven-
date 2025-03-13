@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -19,18 +19,44 @@ import {
   ImageIcon,
 } from "lucide-react";
 
-// Get incidents from localStorage or use mock data if none exist
-const getIncidents = () => {
+import { getIncidents as fetchIncidentsFromAPI } from "@/lib/api";
+
+// Get incidents from Supabase or fallback to localStorage
+const getIncidents = async () => {
   try {
+    // Try to get incidents from Supabase first
+    const supabaseIncidents = await fetchIncidentsFromAPI();
+
+    if (supabaseIncidents && supabaseIncidents.length > 0) {
+      console.log("Loaded incidents from Supabase:", supabaseIncidents);
+      return supabaseIncidents
+        .filter((incident) => incident.status !== "deleted") // Filter out deleted incidents
+        .map((incident) => ({
+          id: incident.id,
+          type: incident.type,
+          description: incident.description,
+          location: incident.location,
+          coordinates: { lat: incident.latitude, lng: incident.longitude },
+          timestamp: formatTimestamp(incident.created_at),
+          user: incident.profiles?.name || "Anonymous",
+          severity: incident.severity,
+          mediaUrl: incident.media_url,
+          status: incident.status,
+        }));
+    }
+
+    // Fallback to localStorage
     const savedIncidents = localStorage.getItem("mockIncidents");
     if (savedIncidents) {
-      return JSON.parse(savedIncidents);
+      console.log("Falling back to localStorage incidents");
+      const incidents = JSON.parse(savedIncidents);
+      return incidents.filter((incident: any) => incident.status !== "deleted"); // Filter out deleted incidents
     }
   } catch (error) {
-    console.error("Error loading incidents from localStorage:", error);
+    console.error("Error loading incidents:", error);
   }
 
-  // Default mock data if nothing in localStorage
+  // Default mock data if nothing in Supabase or localStorage
   return [
     {
       id: 1,
@@ -82,21 +108,68 @@ const getIncidents = () => {
   ];
 };
 
-const mockIncidents = getIncidents();
+// Format timestamp to relative time
+const formatTimestamp = (timestamp: string) => {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
 
-type Incident = (typeof mockIncidents)[0];
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return date.toLocaleDateString();
+};
+
+type Incident = {
+  id: string | number;
+  type: string;
+  description: string;
+  location: string;
+  coordinates: { lat: number; lng: number };
+  timestamp: string;
+  user: string;
+  severity: string;
+  mediaUrl: string | null;
+  status?: string;
+};
 
 export default function FeedPage() {
-  const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
   const [showDetails, setShowDetails] = useState(false);
   const mapRef = useRef(null);
 
+  // Load incidents on component mount
+  useEffect(() => {
+    loadIncidents();
+  }, []);
+
+  // Function to load incidents from API or localStorage
+  const loadIncidents = async () => {
+    setIsLoading(true);
+    try {
+      const loadedIncidents = await getIncidents();
+      setIncidents(loadedIncidents);
+    } catch (error) {
+      console.error("Error loading incidents:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Refresh function to get latest incidents
   const refreshIncidents = () => {
-    setIncidents(getIncidents());
+    loadIncidents();
   };
   const [selectedTab, setSelectedTab] = useState("all");
 
@@ -168,7 +241,13 @@ export default function FeedPage() {
       </Tabs>
 
       <div className="space-y-4">
-        {filteredIncidents.length === 0 ? (
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">Loading incidents...</p>
+            </CardContent>
+          </Card>
+        ) : filteredIncidents.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
               <p className="text-muted-foreground">No incidents to display</p>

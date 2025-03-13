@@ -117,16 +117,47 @@ export default function ProfilePage() {
 
     setIncidentsLoading(true);
     try {
+      console.log("Fetching incidents for user:", user.id);
       const incidents = await getIncidentsByUser(user.id);
-      setReportedIncidents(
-        incidents.map((incident) => ({
-          id: incident.id,
-          type: incident.type,
-          date: new Date(incident.created_at).toLocaleDateString(),
-          status:
-            incident.status.charAt(0).toUpperCase() + incident.status.slice(1),
-        })),
-      );
+      console.log("User incidents from API:", incidents);
+
+      if (incidents.length > 0) {
+        setReportedIncidents(
+          incidents.map((incident) => ({
+            id: incident.id,
+            type: incident.type,
+            date: new Date(incident.created_at).toLocaleDateString(),
+            status:
+              incident.status.charAt(0).toUpperCase() +
+              incident.status.slice(1),
+          })),
+        );
+      } else {
+        // Try to get from localStorage as fallback
+        try {
+          const savedIncidents = localStorage.getItem("mockIncidents");
+          if (savedIncidents) {
+            const localIncidents = JSON.parse(savedIncidents);
+            // Filter to only show incidents that might be from this user
+            const userIncidents = localIncidents.filter(
+              (inc: any) =>
+                inc.user === user.email?.split("@")[0] ||
+                inc.user === "Anonymous",
+            );
+
+            setReportedIncidents(
+              userIncidents.map((incident: any) => ({
+                id: incident.id,
+                type: incident.type,
+                date: new Date().toLocaleDateString(),
+                status: "Pending",
+              })),
+            );
+          }
+        } catch (e) {
+          console.error("Error loading incidents from localStorage:", e);
+        }
+      }
     } catch (error) {
       console.error("Error fetching user incidents:", error);
     } finally {

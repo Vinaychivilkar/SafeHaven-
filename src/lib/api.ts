@@ -35,25 +35,69 @@ export async function updateProfile(
 
 // Incident functions
 export async function getIncidents(): Promise<IncidentWithUser[]> {
-  const { data, error } = await supabase
-    .from("incidents")
-    .select(
-      `
-      *,
-      profiles:user_id(*)
-    `,
-    )
-    .order("created_at", { ascending: false });
+  try {
+    console.log("Fetching incidents from Supabase");
+    const { data, error } = await supabase
+      .from("incidents")
+      .select(
+        `
+        *,
+        profiles:user_id(*)
+      `,
+      )
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching incidents:", error);
+    if (error) {
+      console.error("Error fetching incidents from Supabase:", error);
+      // Try to get from localStorage as fallback
+      try {
+        const savedIncidents = localStorage.getItem("mockIncidents");
+        if (savedIncidents) {
+          console.log("Fetching incidents from localStorage");
+          const localIncidents = JSON.parse(savedIncidents);
+          return localIncidents.map((incident: any) => ({
+            id: incident.id,
+            created_at: new Date().toISOString(),
+            type: incident.type,
+            description: incident.description,
+            location: incident.location,
+            latitude: incident.coordinates?.lat || 0,
+            longitude: incident.coordinates?.lng || 0,
+            severity: incident.severity,
+            media_url: incident.mediaUrl,
+            user_id: "mock-user-id",
+            status: incident.status || "pending",
+            profiles: {
+              id: "mock-user-id",
+              created_at: new Date().toISOString(),
+              email: "user@example.com",
+              name: incident.user || "Anonymous",
+              phone: null,
+              address: null,
+              avatar_url: null,
+            },
+          }));
+        }
+      } catch (e) {
+        console.error("Error loading incidents from localStorage:", e);
+      }
+      return [];
+    }
+
+    console.log(
+      "Successfully fetched incidents from Supabase:",
+      data?.length || 0,
+    );
+    return data as unknown as IncidentWithUser[];
+  } catch (error) {
+    console.error("Unexpected error in getIncidents:", error);
     return [];
   }
-
-  return data as unknown as IncidentWithUser[];
 }
 
 export async function getIncidentsByUser(userId: string): Promise<Incident[]> {
+  console.log("Fetching incidents for user ID:", userId);
+
   const { data, error } = await supabase
     .from("incidents")
     .select("*")
@@ -62,9 +106,33 @@ export async function getIncidentsByUser(userId: string): Promise<Incident[]> {
 
   if (error) {
     console.error("Error fetching user incidents:", error);
+    // Try to get from localStorage as fallback
+    try {
+      const savedIncidents = localStorage.getItem("mockIncidents");
+      if (savedIncidents) {
+        const localIncidents = JSON.parse(savedIncidents);
+        // Convert localStorage format to Incident type
+        return localIncidents.map((incident: any) => ({
+          id: String(incident.id),
+          created_at: new Date().toISOString(),
+          type: incident.type,
+          description: incident.description,
+          location: incident.location,
+          latitude: incident.coordinates?.lat || 0,
+          longitude: incident.coordinates?.lng || 0,
+          severity: incident.severity as "low" | "medium" | "high",
+          media_url: incident.mediaUrl,
+          user_id: userId,
+          status: "pending",
+        }));
+      }
+    } catch (e) {
+      console.error("Error loading incidents from localStorage:", e);
+    }
     return [];
   }
 
+  console.log("User incidents fetched from Supabase:", data);
   return data as Incident[];
 }
 
@@ -72,25 +140,9 @@ export async function createIncident(
   incident: Omit<Incident, "id" | "created_at">,
 ): Promise<Incident | null> {
   try {
-    // First check if the table exists
-    const { error: checkError } = await supabase
-      .from("incidents")
-      .select("count")
-      .limit(1);
+    console.log("Creating incident in Supabase:", incident);
 
-    if (checkError) {
-      console.warn(
-        "Incidents table may not exist or is not accessible:",
-        checkError,
-      );
-      // Return a mock incident for demo purposes
-      return {
-        id: `mock-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        ...incident,
-      } as Incident;
-    }
-
+    // Insert the incident into Supabase
     const { data, error } = await supabase
       .from("incidents")
       .insert(incident)
@@ -98,15 +150,41 @@ export async function createIncident(
       .single();
 
     if (error) {
-      console.error("Error creating incident:", error);
-      // Return a mock incident for demo purposes
-      return {
+      console.error("Error creating incident in Supabase:", error);
+      // Store in localStorage as fallback
+      const mockIncident = {
         id: `mock-${Date.now()}`,
         created_at: new Date().toISOString(),
         ...incident,
       } as Incident;
+
+      try {
+        const savedIncidents = localStorage.getItem("mockIncidents");
+        const incidents = savedIncidents ? JSON.parse(savedIncidents) : [];
+        incidents.unshift({
+          id: mockIncident.id,
+          type: mockIncident.type,
+          description: mockIncident.description,
+          location: mockIncident.location,
+          coordinates: {
+            lat: mockIncident.latitude,
+            lng: mockIncident.longitude,
+          },
+          timestamp: "Just now",
+          user: "Anonymous",
+          severity: mockIncident.severity,
+          mediaUrl: mockIncident.media_url,
+        });
+        localStorage.setItem("mockIncidents", JSON.stringify(incidents));
+        console.log("Incident saved to localStorage as fallback");
+      } catch (e) {
+        console.error("Error saving to localStorage:", e);
+      }
+
+      return mockIncident;
     }
 
+    console.log("Incident created successfully in Supabase:", data);
     return data as Incident;
   } catch (error) {
     console.error("Unexpected error in createIncident:", error);
@@ -123,17 +201,48 @@ export async function updateIncidentStatus(
   incidentId: string,
   status: Incident["status"],
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from("incidents")
-    .update({ status })
-    .eq("id", incidentId);
+  try {
+    console.log(`Updating incident ${incidentId} status to ${status}`);
 
-  if (error) {
-    console.error("Error updating incident status:", error);
+    // Try to update in Supabase
+    const { error } = await supabase
+      .from("incidents")
+      .update({ status })
+      .eq("id", incidentId);
+
+    if (error) {
+      console.error("Error updating incident status in Supabase:", error);
+
+      // Fallback to localStorage
+      try {
+        const savedIncidents = localStorage.getItem("mockIncidents");
+        if (savedIncidents) {
+          const incidents = JSON.parse(savedIncidents);
+          const updatedIncidents = incidents.map((incident: any) => {
+            if (incident.id == incidentId) {
+              return { ...incident, status };
+            }
+            return incident;
+          });
+          localStorage.setItem(
+            "mockIncidents",
+            JSON.stringify(updatedIncidents),
+          );
+          console.log("Updated incident status in localStorage");
+          return true;
+        }
+      } catch (e) {
+        console.error("Error updating incident in localStorage:", e);
+        return false;
+      }
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error in updateIncidentStatus:", error);
     return false;
   }
-
-  return true;
 }
 
 // Storage functions
@@ -142,40 +251,37 @@ export async function uploadMedia(
   userId: string,
 ): Promise<string | null> {
   try {
-    // First, check if the bucket exists and create it if it doesn't
-    const { error: bucketError } = await supabase.storage.getBucket("media");
-    if (bucketError) {
-      // Bucket doesn't exist, create it
-      const { error: createError } = await supabase.storage.createBucket(
-        "media",
-        {
-          public: true,
-        },
-      );
-      if (createError) {
-        console.error("Error creating bucket:", createError);
-        // Fall back to a mock URL for demo purposes
-        return getRandomUnsplashImage();
-      }
+    // Ensure the file is valid
+    if (!file || file.size === 0) {
+      console.error("Invalid file provided");
+      return getRandomUnsplashImage();
     }
 
+    // Create a unique file path
     const fileExt = file.name.split(".").pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     const filePath = `incident-media/${fileName}`;
 
     // Try to upload the file
-    const { error } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from("media")
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
 
     if (error) {
-      console.error("Error uploading file:", error);
+      console.error("Error uploading file to Supabase:", error);
       // Fall back to a mock URL for demo purposes
       return getRandomUnsplashImage();
     }
 
-    const { data } = supabase.storage.from("media").getPublicUrl(filePath);
-    return data.publicUrl;
+    // Get the public URL for the uploaded file
+    const { data: urlData } = supabase.storage
+      .from("media")
+      .getPublicUrl(filePath);
+    console.log("Media uploaded successfully:", urlData.publicUrl);
+    return urlData.publicUrl;
   } catch (error) {
     console.error("Unexpected error in uploadMedia:", error);
     // Fall back to a mock URL for demo purposes

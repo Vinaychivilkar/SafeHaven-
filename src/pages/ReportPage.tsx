@@ -196,34 +196,40 @@ export default function ReportPage() {
         status: "pending",
       };
 
-      // Save to localStorage for demo purposes
-      try {
-        const savedIncidents = localStorage.getItem("mockIncidents");
-        const incidents = savedIncidents ? JSON.parse(savedIncidents) : [];
-        incidents.unshift({
-          id: Date.now(),
-          type: incidentData.type,
-          description: incidentData.description,
-          location: incidentData.location,
-          coordinates: {
-            lat: incidentData.latitude,
-            lng: incidentData.longitude,
-          },
-          timestamp: "Just now",
-          user: user.email?.split("@")[0] || "Anonymous",
-          severity: incidentData.severity,
-          mediaUrl: mediaUrl,
-        });
-        localStorage.setItem("mockIncidents", JSON.stringify(incidents));
-      } catch (e) {
-        console.error("Error saving to localStorage:", e);
-      }
+      console.log("Submitting incident with data:", incidentData);
 
-      // Try to save to Supabase
+      // First try to save to Supabase
       const result = await createIncident(incidentData);
 
       if (!result) {
-        console.warn("Failed to save to Supabase, but saved to localStorage");
+        console.warn("Failed to save to Supabase");
+
+        // Save to localStorage as fallback
+        try {
+          const savedIncidents = localStorage.getItem("mockIncidents");
+          const incidents = savedIncidents ? JSON.parse(savedIncidents) : [];
+          incidents.unshift({
+            id: Date.now(),
+            type: incidentData.type,
+            description: incidentData.description,
+            location: incidentData.location,
+            coordinates: {
+              lat: incidentData.latitude,
+              lng: incidentData.longitude,
+            },
+            timestamp: "Just now",
+            user: user.email?.split("@")[0] || "Anonymous",
+            severity: incidentData.severity,
+            mediaUrl: mediaUrl,
+            status: "pending",
+          });
+          localStorage.setItem("mockIncidents", JSON.stringify(incidents));
+          console.log("Incident saved to localStorage as fallback");
+        } catch (e) {
+          console.error("Error saving to localStorage:", e);
+        }
+      } else {
+        console.log("Incident successfully saved to Supabase:", result);
       }
 
       // Show success and redirect

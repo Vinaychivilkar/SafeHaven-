@@ -48,22 +48,46 @@ export default function MapPage() {
       markers.forEach((marker) => marker.setMap(null));
       setMarkers([]);
 
+      console.log("Loading incidents for map display");
+
       // Try to get incidents from Supabase first
       let fetchedIncidents = await getIncidents();
+      console.log("Incidents fetched from API:", fetchedIncidents);
 
-      // If no incidents from Supabase, try localStorage
-      if (fetchedIncidents.length === 0) {
+      // Process Supabase incidents to the format needed for map
+      let processedIncidents = [];
+
+      if (fetchedIncidents.length > 0) {
+        processedIncidents = fetchedIncidents
+          .filter((incident) => incident.status !== "deleted") // Filter out deleted incidents
+          .map((incident) => ({
+            latitude: incident.latitude,
+            longitude: incident.longitude,
+            type: incident.type,
+            severity: incident.severity,
+            created_at: incident.created_at,
+            description: incident.description,
+            id: incident.id,
+            status: incident.status,
+          }));
+      } else {
+        // If no incidents from Supabase, try localStorage
         try {
           const savedIncidents = localStorage.getItem("mockIncidents");
           if (savedIncidents) {
             const localIncidents = JSON.parse(savedIncidents);
-            fetchedIncidents = localIncidents.map((incident: any) => ({
-              latitude: incident.coordinates.lat,
-              longitude: incident.coordinates.lng,
-              type: incident.type,
-              severity: incident.severity,
-              created_at: new Date().toISOString(),
-            }));
+            processedIncidents = localIncidents
+              .filter((incident: any) => incident.status !== "deleted") // Filter out deleted incidents
+              .map((incident: any) => ({
+                latitude: incident.coordinates.lat,
+                longitude: incident.coordinates.lng,
+                type: incident.type,
+                severity: incident.severity,
+                created_at: new Date().toISOString(),
+                description: incident.description,
+                id: incident.id,
+                status: incident.status || "pending",
+              }));
           }
         } catch (e) {
           console.error("Error loading incidents from localStorage:", e);
@@ -72,29 +96,35 @@ export default function MapPage() {
 
       // If still no incidents, use default mock data
       const incidents =
-        fetchedIncidents.length > 0
-          ? fetchedIncidents
+        processedIncidents.length > 0
+          ? processedIncidents
           : [
               {
+                id: "mock-1",
                 latitude: 19.076,
                 longitude: 72.8777,
                 type: "Suspicious Activity",
                 severity: "medium",
                 created_at: new Date().toISOString(),
+                description: "Suspicious person in the area",
               },
               {
+                id: "mock-2",
                 latitude: 19.033,
                 longitude: 72.8454,
                 type: "Traffic Hazard",
                 severity: "high",
                 created_at: new Date().toISOString(),
+                description: "Major pothole causing traffic issues",
               },
               {
+                id: "mock-3",
                 latitude: 19.1136,
                 longitude: 72.9005,
                 type: "Noise Complaint",
                 severity: "low",
                 created_at: new Date().toISOString(),
+                description: "Loud construction noise after hours",
               },
             ];
 
