@@ -11,6 +11,7 @@ const FeedPage = lazy(() => import("./pages/FeedPage"));
 const ReportPage = lazy(() => import("./pages/ReportPage"));
 const ReportSuccessPage = lazy(() => import("./pages/ReportSuccessPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 function App() {
   // Import tempo routes using dynamic import
@@ -55,6 +56,7 @@ function App() {
               <Route path="/report" element={<ReportPage />} />
               <Route path="/report-success" element={<ReportSuccessPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/admin" element={<AdminPage />} />
               {/* Allow Tempo routes to be captured before any catch-all route */}
               {import.meta.env.VITE_TEMPO === "true" && (
                 <Route path="/tempobook/*" />

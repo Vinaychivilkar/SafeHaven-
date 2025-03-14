@@ -47,7 +47,10 @@ export default function ProfilePage() {
 
     setIsLoading(true);
     try {
+      console.log("Fetching profile for user ID:", user.id);
       const profile = await getProfile(user.id);
+      console.log("Profile data received:", profile);
+
       if (profile) {
         setProfileData({
           id: user.id,
@@ -56,9 +59,37 @@ export default function ProfilePage() {
           phone: profile.phone || "",
           address: profile.address || "",
         });
+      } else {
+        // If no profile, create default values
+        setProfileData({
+          id: user.id,
+          name: user.email?.split("@")[0] || "New User",
+          email: user.email || "",
+          phone: "",
+          address: "",
+        });
+
+        // Try to create a profile
+        const newProfile = {
+          id: user.id,
+          name: user.email?.split("@")[0] || "New User",
+          email: user.email || "",
+          phone: null,
+          address: null,
+        };
+
+        await updateProfile(newProfile);
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      // Set default values on error
+      setProfileData({
+        id: user.id,
+        name: user.email?.split("@")[0] || "New User",
+        email: user.email || "",
+        phone: "",
+        address: "",
+      });
     } finally {
       setIsLoading(false);
     }

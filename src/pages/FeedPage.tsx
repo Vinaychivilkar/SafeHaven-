@@ -24,25 +24,51 @@ import { getIncidents as fetchIncidentsFromAPI } from "@/lib/api";
 // Get incidents from Supabase or fallback to localStorage
 const getIncidents = async () => {
   try {
-    // Try to get incidents from Supabase first
+    // Check for cached data first to avoid unnecessary API calls during development
+    const cachedData = localStorage.getItem("incidentsCache");
+    const cacheTime = localStorage.getItem("incidentsCacheTime");
+    const now = Date.now();
+    const cacheExpired = !cacheTime || now - parseInt(cacheTime) > 30000; // 30 seconds cache
+
+    if (cachedData && !cacheExpired) {
+      console.log("Using cached incidents data");
+      return JSON.parse(cachedData);
+    }
+
+    // Try to get incidents from Supabase
     const supabaseIncidents = await fetchIncidentsFromAPI();
 
     if (supabaseIncidents && supabaseIncidents.length > 0) {
       console.log("Loaded incidents from Supabase:", supabaseIncidents);
-      return supabaseIncidents
+      const processedIncidents = supabaseIncidents
         .filter((incident) => incident.status !== "deleted") // Filter out deleted incidents
-        .map((incident) => ({
-          id: incident.id,
-          type: incident.type,
-          description: incident.description,
-          location: incident.location,
-          coordinates: { lat: incident.latitude, lng: incident.longitude },
-          timestamp: formatTimestamp(incident.created_at),
-          user: incident.profiles?.name || "Anonymous",
-          severity: incident.severity,
-          mediaUrl: incident.media_url,
-          status: incident.status,
-        }));
+        .map((incident) => {
+          console.log(
+            `Processing incident ${incident.id}, profile:`,
+            incident.profiles,
+          );
+          return {
+            id: incident.id,
+            type: incident.type,
+            description: incident.description,
+            location: incident.location,
+            coordinates: { lat: incident.latitude, lng: incident.longitude },
+            timestamp: formatTimestamp(incident.created_at),
+            user: incident.profiles?.name || "Anonymous",
+            severity: incident.severity,
+            mediaUrl: incident.media_url,
+            status: incident.status,
+          };
+        });
+
+      // Cache the processed incidents
+      localStorage.setItem(
+        "incidentsCache",
+        JSON.stringify(processedIncidents),
+      );
+      localStorage.setItem("incidentsCacheTime", Date.now().toString());
+
+      return processedIncidents;
     }
 
     // Fallback to localStorage
@@ -110,21 +136,26 @@ const getIncidents = async () => {
 
 // Format timestamp to relative time
 const formatTimestamp = (timestamp: string) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} minutes ago`;
 
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hours ago`;
 
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} days ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays} days ago`;
 
-  return date.toLocaleDateString();
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error("Error formatting timestamp:", error, timestamp);
+    return "Recently";
+  }
 };
 
 type Incident = {
@@ -169,6 +200,8 @@ export default function FeedPage() {
 
   // Refresh function to get latest incidents
   const refreshIncidents = () => {
+    // Clear cache before loading to ensure fresh data
+    localStorage.removeItem("incidentsCache");
     loadIncidents();
   };
   const [selectedTab, setSelectedTab] = useState("all");

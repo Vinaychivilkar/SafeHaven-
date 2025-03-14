@@ -42,6 +42,27 @@ export default function Navbar() {
             </Link>
           </Button>
 
+          {user?.email === "admin@gmail.com" && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/admin" className="flex flex-col items-center text-xs">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M12 4.5a2.5 2.5 0 0 0-4.96-.46 2.5 2.5 0 0 0-1.98 3 2.5 2.5 0 0 0 1.32 4.24 2.5 2.5 0 0 0 1.98 3A2.5 2.5 0 0 0 12 19.5a2.5 2.5 0 0 0 3.64-5.2 2.5 2.5 0 0 0 1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 12 4.5z" />
+                  <path d="M12 12v.01" />
+                </svg>
+                <span>Admin</span>
+              </Link>
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"

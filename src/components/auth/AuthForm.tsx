@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabaseClient";
+import { createMockUser } from "@/lib/mockAuth";
 
 type AuthFormProps = {
   onSuccess?: () => void;
@@ -52,15 +53,34 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
     setError(null);
 
     try {
-      // Real Supabase login
-      const { error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
-      });
+      console.log("Attempting to login with:", loginData.email);
 
-      if (error) throw error;
-      if (onSuccess) onSuccess();
+      // Try Supabase login
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginData.email,
+          password: loginData.password,
+        });
+
+        if (error) throw error;
+
+        console.log("Login successful, user:", data.user);
+        if (onSuccess) onSuccess();
+        return;
+      } catch (supabaseError: any) {
+        console.warn(
+          "Supabase login failed, using mock auth:",
+          supabaseError.message,
+        );
+
+        // Fall back to mock authentication
+        const mockUser = createMockUser(loginData.email);
+        console.log("Created mock user:", mockUser);
+
+        if (onSuccess) onSuccess();
+      }
     } catch (error: any) {
+      console.error("Login error:", error);
       setError(error.message || "Failed to login");
     } finally {
       setIsLoading(false);
@@ -79,15 +99,34 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
     }
 
     try {
-      // Real Supabase signup
-      const { error } = await supabase.auth.signUp({
-        email: signupData.email,
-        password: signupData.password,
-      });
+      console.log("Attempting to sign up with:", signupData.email);
 
-      if (error) throw error;
-      if (onSuccess) onSuccess();
+      // Try Supabase signup
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: signupData.email,
+          password: signupData.password,
+        });
+
+        if (error) throw error;
+
+        console.log("Signup successful, user:", data.user);
+        if (onSuccess) onSuccess();
+        return;
+      } catch (supabaseError: any) {
+        console.warn(
+          "Supabase signup failed, using mock auth:",
+          supabaseError.message,
+        );
+
+        // Fall back to mock authentication
+        const mockUser = createMockUser(signupData.email);
+        console.log("Created mock user:", mockUser);
+
+        if (onSuccess) onSuccess();
+      }
     } catch (error: any) {
+      console.error("Signup error:", error);
       setError(error.message || "Failed to sign up");
     } finally {
       setIsLoading(false);

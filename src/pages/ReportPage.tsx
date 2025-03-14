@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { createIncident, uploadMedia } from "@/lib/api";
+import { createIncident, uploadMedia, getProfile } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -181,6 +181,14 @@ export default function ReportPage() {
         mediaUrl = await uploadMedia(formData.media, user.id);
       }
 
+      // Get user profile to include in the incident
+      let userProfile;
+      try {
+        userProfile = await getProfile(user.id);
+      } catch (e) {
+        console.error("Error getting user profile:", e);
+      }
+
       const incidentData = {
         type:
           incidentTypes.find((t) => t.value === formData.type)?.label ||
@@ -218,7 +226,7 @@ export default function ReportPage() {
               lng: incidentData.longitude,
             },
             timestamp: "Just now",
-            user: user.email?.split("@")[0] || "Anonymous",
+            user: userProfile?.name || user.email?.split("@")[0] || "Anonymous",
             severity: incidentData.severity,
             mediaUrl: mediaUrl,
             status: "pending",
@@ -231,6 +239,9 @@ export default function ReportPage() {
       } else {
         console.log("Incident successfully saved to Supabase:", result);
       }
+
+      // Clear incidents cache to ensure the new incident shows up in the feed
+      localStorage.removeItem("incidentsCache");
 
       // Show success and redirect
       navigate("/report-success");
